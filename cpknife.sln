@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpknife", "cpknife\cpknife.vcxproj", "{781B2F95-3997-40FC-8650-C8E07FB70F51}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpknifeUnitTest", "cpknifeUnitTest\cpknifeUnitTest.vcxproj", "{2FC654AD-43F4-4415-8E02-8848537ACAAE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{781B2F95-3997-40FC-8650-C8E07FB70F51}.Release|x64.Build.0 = Release|x64
 		{781B2F95-3997-40FC-8650-C8E07FB70F51}.Release|x86.ActiveCfg = Release|Win32
 		{781B2F95-3997-40FC-8650-C8E07FB70F51}.Release|x86.Build.0 = Release|Win32
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Debug|x64.ActiveCfg = Debug|x64
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Debug|x64.Build.0 = Debug|x64
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Debug|x86.ActiveCfg = Debug|Win32
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Debug|x86.Build.0 = Debug|Win32
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Release|x64.ActiveCfg = Release|x64
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Release|x64.Build.0 = Release|x64
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Release|x86.ActiveCfg = Release|Win32
+		{2FC654AD-43F4-4415-8E02-8848537ACAAE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
