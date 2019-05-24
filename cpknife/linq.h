@@ -18,9 +18,12 @@
 #include <unordered_map>
 
 #include "exportapi.h"
-
+#include <fstream>
+using namespace std;
 namespace cpknife
 {
+	ofstream of("linq_debug.txt", ios::out | ios::trunc);
+
 #pragma region auxiliary
 
 	/*
@@ -39,22 +42,29 @@ namespace cpknife
 	class _Enumerator
 	{
 	private:
-		std::function<TValue(TIter&)> _next;
-		TIter _iter;
+		std::function<TValue(TIter&)> _next; // function return a value through iterator
+											 // occure exception would throw _EnumeratorEnding
+
+		TIter _iter;						 // begin iterator
 
 	public:
 		typedef TValue value_type;
+		typedef TIter iterator_type;
 
 		_Enumerator(std::function<TValue(TIter&)> next, TIter iter)
 			: _next(next)
 			, _iter(iter)
 		{
+			of << "_Enumerator.ctor()" << endl;
+			of.flush();
 		}
 
 		TValue next()
 		{
 			return _next(_iter);
 		}
+
+		//TIter GetIter() { return _iter; }
 	};
 
 	/*
@@ -66,8 +76,23 @@ namespace cpknife
 	private:
 		TEnumerator* _enumerator;
 		typedef typename TEnumerator::value_type value_type;
+		typedef typename TEnumerator::iterator_type iterator_type;
+
 		void foreach_impl(std::function<void(value_type, int)> action) const;
-	
+
+		LinqImpl<_Enumerator<value_type, TEnumerator>>
+			where_impl(std::function<bool(value_type, int)> predicate) const
+		{
+			static int index = 0;
+			return new _Enumerator<value_type, TEnumerator>
+				([=](TEnumerator & pair) {
+				value_type object = pair.next();
+				while (!predicate(object, index++)) {
+					object = pair.next();
+				}
+				return object;
+			}, *_enumerator);
+		}
 	public:
 		LinqImpl(TEnumerator* enumerator) : _enumerator(enumerator) {}
 		virtual ~LinqImpl() { delete _enumerator; }
@@ -77,8 +102,18 @@ namespace cpknife
 		*/
 		void foreach(std::function<void(value_type)> action) const
 		{
+			of << "foreach()" << endl;
+			of.flush();
 			foreach_impl([&](value_type a, int) {return action(a); });
 		}
+
+
+
+		LinqImpl<_Enumerator<value_type, TEnumerator>> where(std::function<bool(value_type)> predicate) const
+		{
+			return where_impl([=](value_type a, int) {return predicate(a); });
+		}
+
 	};
 
 #pragma endregion
@@ -90,6 +125,8 @@ namespace cpknife
 		TIter begin, 
 		TIter end)
 	{
+		of << "from() " << endl;
+		of.flush();
 		return new _Enumerator<TValue, TIter>([=](TIter& iter) {
 			return (iter == end) ? throw _EnumeratorEnding() : *(iter++);
 		}, begin);
@@ -209,6 +246,8 @@ namespace cpknife
 	inline void LinqImpl<TEnumerator>::foreach_impl(
 		std::function<void(value_type, int)> action) const
 	{
+		of << "foreach_impl()" << endl;
+		of.flush();
 		int index = 0;
 		try
 		{

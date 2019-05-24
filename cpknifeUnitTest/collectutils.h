@@ -113,3 +113,29 @@ template<typename TC>
 bool contains(int elem, TC& coll) {
 	return coll.find(elem) != coll.end();
 }
+
+template<typename T>
+bool InBuiltArrayEqual(const T a1[], const T a2[], int size)
+{
+	if (a1 == nullptr || a2 == nullptr)
+		return false;
+
+	try
+	{
+		for (int i = 0; i<size; i++)
+		{
+			if (a1[i] != a2[i])
+				return false;
+		}
+		return true;
+	}
+	catch{
+		return false;
+	}
+}
+
+template<typename TC>
+bool CollEqual(const TC& coll1, const TC& coll2)
+{
+	return coll1 == coll2;
+}

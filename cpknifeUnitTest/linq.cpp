@@ -2,6 +2,7 @@
 #include "CppUnitTest.h"
 #include "..\cpknife\linq.h"
 #include "collectutils.h"
+#include <fstream>
 
 using namespace std;
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -9,6 +10,8 @@ using namespace cpknife;
 
 namespace cpknifeUnitTest
 {		
+	ofstream of("linq_test.txt", ios::out | ios::trunc);
+
 	TEST_CLASS(linqTest)
 	{
 	public:
@@ -109,13 +112,12 @@ namespace cpknifeUnitTest
 			}
 		}
 
-		TEST_METHOD(whereTest) {
-			//int src[] = { 1,2,3,4,5,6 };
-			//int ans[] = { 1,  3,  5 };
+		//TEST_METHOD(whereTest) {
+		//	int src[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+		//	int ans[] = { 1, 3, 5, 7, 9 };
 
-			//auto rng = from(src);
-			//auto dst = rng.where([](int a) {return a % 2 == 1; });
-			//int i = 100;
-		}
+		//	auto rng = from(src).where([](int a) {return a % 2 == 1; });
+		//	Assert::IsTrue(InBuiltArrayEqual<int>(ans, rng));
+		//}
 	};
 }
