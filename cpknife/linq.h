@@ -16,59 +16,58 @@
 #include <climits>
 #include <unordered_set>
 #include <unordered_map>
-
 #include "exportapi.h"
 #include <fstream>
+
 using namespace std;
+
 namespace cpknife
 {
-	ofstream of("linq_debug.txt", ios::out | ios::trunc);
-
 #pragma region auxiliary
 
 	/*
-	** convenient detect iterator ending
+	** convenient detect where no more data to get
 	*/
-	class _EnumeratorEnding {};
+	class _no_more_data {};
 
 #pragma endregion
 
 #pragma  region core
 
 	/*
-	** actually iterater
+	** wrapped:
+	** 1. a callable object that can get data one by one
+	** 2. a pos to point current data position
+	** <TValue>	 container element's type
+	** <TPos>	 any type which can get a element value(a iterator or a _innter_enumerator...)
 	*/
-	template<typename TValue, typename TIter>
-	class _Enumerator
+	template<typename TValue, typename TPos>
+	class _inner_enumerator
 	{
 	private:
-		std::function<TValue(TIter&)> _next; // function return a value through iterator
-											 // occure exception would throw _EnumeratorEnding
-
-		TIter _iter;						 // begin iterator
+		std::function<TValue(TPos&)> _next; 									 
+		TPos _pos;						 
 
 	public:
-		typedef TValue value_type;
-		typedef TIter iterator_type;
+		typedef typename TValue value_type;
 
-		_Enumerator(std::function<TValue(TIter&)> next, TIter iter)
+		_inner_enumerator(std::function<TValue(TPos&)> next, TPos pos)
 			: _next(next)
-			, _iter(iter)
+			, _pos(pos)
 		{
-			of << "_Enumerator.ctor()" << endl;
-			of.flush();
 		}
 
 		TValue next()
 		{
-			return _next(_iter);
+			return _next(_pos);
 		}
-
-		//TIter GetIter() { return _iter; }
 	};
 
 	/*
-	** linq class
+	** linq implement class
+	** use _inner_enumerator object to get elements
+	** the start point is from(), that return a LinqImpl object
+	** which has a _inner_enumerator object can iterate all elements
 	*/
 	template<typename TEnumerator>
 	class LinqImpl
@@ -76,59 +75,132 @@ namespace cpknife
 	private:
 		TEnumerator* _enumerator;
 		typedef typename TEnumerator::value_type value_type;
-		typedef typename TEnumerator::iterator_type iterator_type;
 
-		void foreach_impl(std::function<void(value_type, int)> action) const;
+		/*
+		** action() for each element
+		** a indexer can be used
+		*/
+		void foreach_impl(std::function<void(value_type, int)> action) const
+		{
+			int index = 0;
+			try
+			{
+				while (true) action(_enumerator->next(), index++);
+			}
+			catch (_no_more_data &) {}
+		}
 
-		LinqImpl<_Enumerator<value_type, TEnumerator>>
+		/*
+		** where(predicate) return predicate->true elements
+		** return LinqImpl<> to support pipe call
+		*/
+		LinqImpl<_inner_enumerator<value_type, TEnumerator>>
 			where_impl(std::function<bool(value_type, int)> predicate) const
 		{
 			static int index = 0;
-			return new _Enumerator<value_type, TEnumerator>
-				([=](TEnumerator & pair) {
-				value_type object = pair.next();
+			return new _inner_enumerator<value_type, TEnumerator>
+				([=](TEnumerator & en) {
+				value_type object = en.next(); 
 				while (!predicate(object, index++)) {
-					object = pair.next();
+					object = en.next();
 				}
 				return object;
 			}, *_enumerator);
 		}
+
 	public:
 		LinqImpl(TEnumerator* enumerator) : _enumerator(enumerator) {}
 		virtual ~LinqImpl() { delete _enumerator; }
 
 		/*
-		** Linq method
+		** Linq API
 		*/
 		void foreach(std::function<void(value_type)> action) const
 		{
-			of << "foreach()" << endl;
-			of.flush();
 			foreach_impl([&](value_type a, int) {return action(a); });
-		}
+		}		
 
-
-
-		LinqImpl<_Enumerator<value_type, TEnumerator>> where(std::function<bool(value_type)> predicate) const
+		LinqImpl<_inner_enumerator<value_type, TEnumerator>> 
+			where(std::function<bool(value_type)> predicate) const
 		{
 			return where_impl([=](value_type a, int) {return predicate(a); });
 		}
 
+		/*
+		** get n elements
+		*/
+		LinqImpl<_inner_enumerator<value_type, TEnumerator>> 
+			take(int count) const
+		{
+			return new _inner_enumerator<value_type, TEnumerator>
+				([&](TEnumerator & en) {
+				while (count-- > 0) {
+					return en.next();
+				};
+				throw _no_more_data();  // abort iterate
+			}, *_enumerator);
+		}
+
+	private:
+
+		template<typename TColl, typename TFunc>
+		TColl _To_Coll(TFunc func) const 
+		{
+		    TColl container;
+		    try
+		    {
+				while (true) func(container, _enumerator->next());
+		    }
+		    catch(_no_more_data &) {}
+		    return container;
+		}
+
+	public:
+
+		vector<value_type> ToVector() const
+		{
+			return _To_Coll<vector<value_type>>([](
+				vector<value_type>& cnt, const value_type& val) {
+				cnt.push_back(val);
+			});
+		}
+
+		list<value_type> ToList() const
+		{
+			return _To_Coll<list<value_type>>([](
+				list<value_type>& cnt, const value_type& val) {
+				cnt.push_back(val);
+			});
+		}
+
+		deque<value_type> ToDeque() const
+		{
+			return _To_Coll<deque<value_type>>([](
+				deque<value_type>& cnt, const value_type& val) {
+				cnt.push_back(val);
+			});
+		}
+
+		set<value_type> ToSet() const
+		{
+			return _To_Coll<set<value_type>>([](
+				set<value_type>& cnt, const value_type& val) {
+				cnt.insert(val);
+			});
+		}
 	};
 
 #pragma endregion
 
 #pragma region linq api
 
-	template<typename TValue, typename TIter>
-	LinqImpl<_Enumerator<TValue, TIter>> from(
-		TIter begin, 
-		TIter end)
+	template<typename TValue, typename TPos>
+	LinqImpl<_inner_enumerator<TValue, TPos>> from(
+		TPos begin,
+		TPos end)
 	{
-		of << "from() " << endl;
-		of.flush();
-		return new _Enumerator<TValue, TIter>([=](TIter& iter) {
-			return (iter == end) ? throw _EnumeratorEnding() : *(iter++);
+		return new _inner_enumerator<TValue, TPos>([=](TPos& iter) {
+			return (iter == end) ? throw _no_more_data() : *(iter++);
 		}, begin);
 	}
 
@@ -147,10 +219,10 @@ namespace cpknife
 	*/
 	template<typename TValue, size_t N,
 		template<typename, size_t> class TArray>
-	auto from(const TArray<TValue,N> & container)
-	    -> decltype(from<TValue>(std::begin(container), std::end(container)))
+	auto from(const TArray<TValue, N> & container)
+		-> decltype(from<TValue>(std::begin(container), std::end(container)))
 	{
-	    return from<TValue>(std::begin(container), std::end(container));
+		return from<TValue>(std::begin(container), std::end(container));
 	}
 
 	/*
@@ -160,10 +232,10 @@ namespace cpknife
 	*/
 	template<typename T, typename Allocator = allocator<T>,
 		template<typename, typename> class TSeqCtn>
-	auto from(const TSeqCtn<T,Allocator> & container)
-	    -> decltype(from<T>(std::begin(container), std::end(container)))
+	auto from(const TSeqCtn<T, Allocator> & container)
+		-> decltype(from<T>(std::begin(container), std::end(container)))
 	{
-	    return from<T>(std::begin(container), std::end(container));
+		return from<T>(std::begin(container), std::end(container));
 	}
 
 	/*
@@ -173,14 +245,14 @@ namespace cpknife
 	** set
 	*/
 	template<
-		typename T, 
-		typename Compare = less<T>, 
+		typename T,
+		typename Compare = less<T>,
 		typename Allocator = allocator<T>,
 		template<typename, typename, typename> class TSet>
-	auto from(const TSet<T,Compare,Allocator> & container)
-	    -> decltype(from<T>(std::begin(container), std::end(container)))
+	auto from(const TSet<T, Compare, Allocator> & container)
+		-> decltype(from<T>(std::begin(container), std::end(container)))
 	{
-	    return from<T>(std::begin(container), std::end(container));
+		return from<T>(std::begin(container), std::end(container));
 	}
 
 	/*
@@ -190,14 +262,14 @@ namespace cpknife
 	** map
 	*/
 	template<
-		typename Key, typename T, 
-		typename Compare = less<T>, 
+		typename Key, typename T,
+		typename Compare = less<T>,
 		typename Allocator = allocator<pair<const Key, T>>,
 		template<typename, typename, typename, typename> class TMap>
-	auto from_map(const TMap<Key,T,Compare,Allocator> & container)
-	    -> decltype(from<std::pair<Key, T> >(std::begin(container), std::end(container)))
+	auto from_map(const TMap<Key, T, Compare, Allocator> & container)
+		-> decltype(from<std::pair<Key, T> >(std::begin(container), std::end(container)))
 	{
-	    return from<std::pair<Key,T> >(std::begin(container), std::end(container));
+		return from<std::pair<Key, T> >(std::begin(container), std::end(container));
 	}
 
 	/*
@@ -238,23 +310,6 @@ namespace cpknife
 		return from<std::pair<Key, T>>(std::begin(containter), std::end(containter));
 	}
 
-#pragma endregion
-
-#pragma region linq method implement
-
-	template<typename TEnumerator>
-	inline void LinqImpl<TEnumerator>::foreach_impl(
-		std::function<void(value_type, int)> action) const
-	{
-		of << "foreach_impl()" << endl;
-		of.flush();
-		int index = 0;
-		try
-		{
-			while (true) action(_enumerator->next(), index++);
-		}
-		catch (_EnumeratorEnding &) {}
-	}
 #pragma endregion
 
 }
