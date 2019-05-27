@@ -127,7 +127,7 @@ namespace cpknifeUnitTest
 				return a % 2 == 1;
 			});
 
-			auto vec = result.ToVector();
+			auto vec = result.to_vector();
 			Assert::AreEqual(5, (int)vec.size());
 			Assert::AreEqual(1, vec[0]);
 			Assert::AreEqual(3, vec[1]);
@@ -140,7 +140,7 @@ namespace cpknifeUnitTest
 				return a % 2 == 1;
 			});
 
-			auto vec2 = result2.ToVector();
+			auto vec2 = result2.to_vector();
 			Assert::AreEqual(5, (int)vec2.size());
 			Assert::AreEqual(1, vec2[0]);
 			Assert::AreEqual(3, vec2[1]);
@@ -159,7 +159,7 @@ namespace cpknifeUnitTest
 			};
 
 			auto rng = from(str_src).where([](string s)
-			{return s[0] == 'a'; }).ToList();
+			{return s[0] == 'a'; }).to_list();
 			Assert::AreEqual(2, (int)rng.size());
 			Assert::AreEqual(string("apple"), rng.front());
 			rng.pop_front();
@@ -182,48 +182,195 @@ namespace cpknifeUnitTest
 
 			auto rng2 = from(obj_src).where([](const NameAge& a) {
 				return a.age < 18; 
-			}).ToList();
+			}).to_list();
 			Assert::AreEqual(2, (int)rng2.size());
 		}
 
 		TEST_METHOD(takeTest) {
 			vector<int> vec = { 1,2,3,4,5,6 };
-			auto rst = from(vec).take(10).ToVector();
+			auto rst = from(vec).take(10).to_vector();
 			Assert::IsTrue(rst == vec);
 
-			auto rst2 = from(vec).take(6).ToVector();
+			auto rst2 = from(vec).take(6).to_vector();
 			Assert::IsTrue(rst2 == vec);
 
+			auto rst21 = from(vec).take(2).to_vector();
+			vector<int> exp21 = { 1,2 };
+			Assert::IsTrue(exp21 == rst21);
+
 			vector<int> exp = { 1,2,3 };
-			auto rst3 = from(vec).take(3).ToVector();
+			auto rst3 = from(vec).take(3).to_vector();
 			Assert::IsTrue(rst3 == exp);
 
 			vector<int> exp2 = { 1 };
-			auto rst4 = from(vec).take(1).ToVector();
+			auto rst4 = from(vec).take(1).to_vector();
 			Assert::IsTrue(rst4 == exp2);
 
 			vector<int> exp3 = {};
-			auto rst5 = from(vec).take(0).ToVector();
+			auto rst5 = from(vec).take(0).to_vector();
 			Assert::IsTrue(rst5 == exp3);
 
 			vector<int> vec2 = { 5 };
 			vector<int> exp4 = { 5 };
-			auto rst6 = from(vec2).take(5).ToVector();
+			auto rst6 = from(vec2).take(5).to_vector();
 			Assert::IsTrue(rst6 == exp4);
 
-			auto rst7 = from(vec2).take(1).ToVector();
+			auto rst7 = from(vec2).take(1).to_vector();
 			Assert::IsTrue(rst7 == exp4);
 
-			auto rst8 = from(vec2).take(0).ToVector();
+			auto rst8 = from(vec2).take(0).to_vector();
 			Assert::IsTrue(rst8 == exp3);
 
 			vector<int> vec3 = {};
-			auto rst9 = from(vec3).take(0).ToVector();
+			auto rst9 = from(vec3).take(0).to_vector();
 			Assert::IsTrue(rst9 == exp3);
 
-			auto rst10 = from(vec3).take(100).ToVector();
+			auto rst10 = from(vec3).take(100).to_vector();
 			Assert::IsTrue(rst10 == exp3);
 		}
 
+		vector<int> empty_vec = {};
+
+		TEST_METHOD(takewhileTest2)
+		{
+			vector<int> vec5 = { 1,2,3,4,5,6,7,8,9 };
+			vector<int> exp5 = { 2,4,6 };
+			auto rst11 = from(vec5).take(6).where([](int e) {
+				return e % 2 == 0;
+			}).to_vector();
+			Assert::IsTrue(rst11 == exp5);
+
+			auto rst12 = from(vec5).take(3).where([](int e) {
+				return e > 100;
+			}).to_vector();
+			vector<int> empty_vec = {};
+			Assert::IsTrue(rst12 == empty_vec);
+		}
+
+		TEST_METHOD(skipTest)
+		{
+			vector<int> vec = { 1,2,3,4,5,6,7,8,9 };
+			auto rst = from(vec).skip(0).to_vector();
+			Assert::IsTrue(vec == rst);
+
+			auto rst1 = from(vec).skip(100).to_vector();
+			Assert::IsTrue(rst1 == empty_vec);
+
+			vector<int> exp2 = { 6,7,8,9 };
+			auto rst2 = from(vec).skip(5).to_vector();
+			Assert::IsTrue(exp2 == rst2);
+
+			vector<int> exp3 = { 7,9 };
+			auto rst3 = from(vec).skip(5).where([](int e) {
+				return e % 2 == 1;
+			});
+		}
+
+		TEST_METHOD(selectTest)
+		{
+			vector<int> src = { 1,2,3,4 };
+			vector<int> exp = { 2,4,6,8 };
+
+			auto rst = from(src).select([](int a) {
+				return a * 2;
+			}).to_vector();
+			Assert::IsTrue(rst == exp);
+
+			char buf[16];
+			auto rst2 = from(src).select([&](int a) {
+				sprintf(buf, "%d", a);
+				return string(buf);
+			}).to_vector();
+			vector<string> exp2 = { "1", "2", "3", "4" };
+			Assert::IsTrue(rst2 == exp2);
+		}
+
+		struct Man
+		{
+			std::string name;
+			int age;
+
+			bool operator < (const Man & man) const
+			{
+				return (name < man.name)
+					|| (name == man.name && age < man.age);
+			}
+
+			//bool operator == (const Man & man) const
+			//{
+			//	return (name == man.name);
+			//}
+
+			//bool operator == (const std::string & manName) const
+			//{
+			//	return (this->name == manName);
+			//}
+		};
+
+
+		TEST_METHOD(distinctTest) {
+			vector<int> src = { 4,5,3,1,4,2,1,4,6 };
+			vector<int> exp = { 4,5,3,1,2,6 };
+			auto rst = from(src).distinct().to_vector();
+			Assert::IsTrue(rst == exp);
+
+			Man src2[] =
+			{
+				{ "Anton",1 },
+				{ "Taran",2 },
+				{ "Poker",3 },
+				{ "Agata",4 },
+				{ "Anton",2 },
+				{ "Banan",1 },
+
+			};
+
+			auto rst2 = from(src2).
+				distinct([](const Man & man) {return man.name; }).to_vector();
+			Assert::AreEqual(5, (int)rst2.size());
+		}
+
+		TEST_METHOD(order_byTest)
+		{
+			vector<int> src = { 4,5,3,1,4,2,1,4,6 };
+			vector<int> exp = { 1,1,2,3,4,4,4,5,6 };
+
+			auto rst = from(src).order_by().to_vector();
+			Assert::IsTrue(exp == rst);
+
+			vector<string> src2 = {
+				"microsoft", "intel", "nokia", "apple", "oracle", "sun"
+			};
+			vector<string> exp2 = {
+				"sun", "intel", "nokia", "apple", "oracle", "microsoft"
+			};
+			auto rst2 = from(src2).order_by(
+				[](const string&s) {
+				return s.size(); }).to_vector();
+				Assert::IsTrue(exp2 == rst2);
+		}
+
+		TEST_METHOD(reverseTest) {
+			vector<int> src = { 1,2,3,4 };
+			vector<int> exp = { 4,3,2,1 };
+			auto rst = from(src).reverse().to_vector();
+			Assert::IsTrue(exp == rst);
+
+			auto rst2 = from(src).reverse().reverse().to_vector();
+			Assert::IsTrue(rst2 == src);
+		}
+
+		//TEST_METHOD(bytesTest) {
+		//	vector<unsigned int> src = { 0x12345678, 0xAABBCCDD };
+		//	vector<int> exp = { 0x78, 0x56, 0x34, 0x12, 0xDD, 0xCC, 0xBB, 0xAA };
+		//	auto rst = from(src).bytes(FirstToLast).to_vector();
+		//	Assert::IsTrue(exp == rst);
+		//}
+
+		//TEST_METHOD(unbytesTest) {
+		//	vector<unsigned char> src = { 0x78, 0x56, 0x34, 0x12, 0xAA, 0xBB, 0xCC, 0xDD };
+		//	vector<unsigned int> exp = { 0x12345678, 0xDDCCBBAA };
+		//	auto rst = from(src).unbytes(FirstToLast).to_vector();
+		//}
 	};
 }

@@ -28,7 +28,45 @@ namespace cpknife
 	/*
 	** convenient detect where no more data to get
 	*/
-	class _no_more_data {};
+	class _INNER_Entor_End {};
+
+	template<typename TI, typename TC>
+	class _INNER_Iter_Cont_Pair
+	{
+		std::function<TI(const TC &)> get_ti;
+
+	public:
+		TC second;
+		TI first;
+
+		_INNER_Iter_Cont_Pair(const TC & tc, std::function<TI(const TC &)> get_ti_)
+			: get_ti(get_ti_)
+			, second(tc)
+			, first(get_ti(second))
+		{
+		}
+
+		_INNER_Iter_Cont_Pair(const _INNER_Iter_Cont_Pair<TI, TC> & pair)
+			: get_ti(pair.get_ti)
+			, second(pair.second)
+			, first(get_ti(second))
+		{
+			for (auto it = pair.get_ti(pair.second); it != pair.first; ++it)
+				first++;
+		}
+	};
+
+	enum BytesDirection
+	{
+		FirstToLast,
+		LastToFirst,
+	};
+
+	enum BitsDirection
+	{
+		HighToLow,
+		LowToHigh,
+	};
 
 #pragma endregion
 
@@ -42,7 +80,7 @@ namespace cpknife
 	** <TPos>	 any type which can get a element value(a iterator or a _innter_enumerator...)
 	*/
 	template<typename TValue, typename TPos>
-	class _inner_enumerator
+	class _INNER_Entor
 	{
 	private:
 		std::function<TValue(TPos&)> _next; 									 
@@ -51,7 +89,7 @@ namespace cpknife
 	public:
 		typedef typename TValue value_type;
 
-		_inner_enumerator(std::function<TValue(TPos&)> next, TPos pos)
+		_INNER_Entor(std::function<TValue(TPos&)> next, TPos pos)
 			: _next(next)
 			, _pos(pos)
 		{
@@ -69,76 +107,444 @@ namespace cpknife
 	** the start point is from(), that return a LinqImpl object
 	** which has a _inner_enumerator object can iterate all elements
 	*/
-	template<typename TEnumerator>
-	class LinqImpl
+	template<typename TEntor>
+	class Linqer
 	{
 	private:
-		TEnumerator* _enumerator;
-		typedef typename TEnumerator::value_type value_type;
+		TEntor _entor;
+		typedef typename TEntor::value_type value_type;
+
+		template<typename TFunc, typename TArg>
+		static auto get_return_type(TFunc * func = NULL, TArg * arg1 = NULL)
+			-> decltype((*func)(*arg1));
+
+		template<typename TFunc, typename T1Arg, typename T2Arg>
+		static auto get_return_type(TFunc * func = NULL, T1Arg * arg1 = NULL, T2Arg * arg2 = NULL)
+			-> decltype((*func)(*arg1, *arg2));
+
+	public:
+		Linqer(TEntor entor) : _entor(entor) {}
 
 		/*
 		** action() for each element
 		** a indexer can be used
 		*/
-		void foreach_impl(std::function<void(value_type, int)> action) const
+		void _foreach(std::function<void(value_type, int)> action) const
 		{
+			auto entor = _entor; // why call directly error
 			int index = 0;
 			try
 			{
-				while (true) action(_enumerator->next(), index++);
+				while (true) action(entor.next(), index++);
 			}
-			catch (_no_more_data &) {}
+			catch (_INNER_Entor_End &) {}
+		}
+		void foreach(std::function<void(value_type)> action) const
+		{
+			_foreach([=](value_type a, int) {return action(a); });
 		}
 
 		/*
 		** where(predicate) return predicate->true elements
 		** return LinqImpl<> to support pipe call
 		*/
-		LinqImpl<_inner_enumerator<value_type, TEnumerator>>
-			where_impl(std::function<bool(value_type, int)> predicate) const
+		Linqer<_INNER_Entor<value_type, std::pair<TEntor, int>>>
+			_where(std::function<bool(value_type, int)> predicate) const
 		{
-			static int index = 0;
-			return new _inner_enumerator<value_type, TEnumerator>
-				([=](TEnumerator & en) {
-				value_type object = en.next(); 
-				while (!predicate(object, index++)) {
-					object = en.next();
-				}
+			return _INNER_Entor<value_type, std::pair<TEntor, int> >([=](std::pair<TEntor, int> & pair)->value_type {
+				value_type object;
+				do
+					object = pair.first.next();
+				while (!predicate(object, pair.second++));
 				return object;
-			}, *_enumerator);
+			}, std::make_pair(_entor, 0));
 		}
+
+		Linqer<_INNER_Entor<value_type, std::pair<TEntor, int>>>
+			where(std::function<bool(value_type)> predicate) const
+			{
+				return _where([=](value_type a, int) {return predicate(a); });
+			}
+
+			/*
+			** take n elements
+			*/
+			Linqer<_INNER_Entor<value_type, std::pair<TEntor, int>>>
+				take(int count) const
+			{
+				return _where([=](value_type, int i) {
+					if (i == count)
+						throw _INNER_Entor_End();
+					return true;
+				});
+			}
+
+			/*
+			** skip n elements
+			*/
+			Linqer<_INNER_Entor<value_type, std::pair<TEntor, int>>>
+				skip(int count) const
+			{
+				return _where([=](value_type, int index) {
+					return index >= count;
+				});
+			}
+
+			/*
+			** project
+			*/
+			template<typename TRet>
+			Linqer<_INNER_Entor<TRet, std::pair<TEntor, int>>>
+				_select(std::function<TRet(value_type, int)> transform) const
+			{
+				return _INNER_Entor<TRet, std::pair<TEntor, int>>
+					([=](std::pair<TEntor, int>& pair)->TRet {
+					return transform(pair.first.next(), pair.second++);
+				}, make_pair(_entor, 0));
+			}
+
+			template<typename TFunc>
+			Linqer<_INNER_Entor<decltype(get_return_type<TFunc, value_type, int>()),
+				std::pair<TEntor, int> > > _select(TFunc transform) const
+			{
+				return _select<decltype(get_return_type<TFunc, value_type, int>())>(transform);
+			}
+
+			template<typename TRet>
+			Linqer<_INNER_Entor<TRet, std::pair<TEntor, int>>>
+				select(std::function<TRet(value_type)> transform) const
+			{
+				return _select<TRet>([=](value_type a, int) {return transform(a); });
+			}
+
+			template<typename TFunc>
+			Linqer<_INNER_Entor<decltype(get_return_type<TFunc, value_type>()),
+				std::pair<TEntor, int>>> select(TFunc transform) const
+			{
+				return select<decltype(get_return_type<TFunc, value_type>())>(transform);
+			}
+
+			template<typename TRet>
+			Linqer<_INNER_Entor<TRet, std::pair<TEntor, int>>> cast() const
+			{
+				return _select<TRet>([=](value_type a, int)
+				{ return a; });
+			}
+
+			template<typename TRet>
+			Linqer<_INNER_Entor<value_type, std::pair<TEntor, std::set<TRet>>>>
+				distinct(std::function<TRet(value_type)> transform) const
+			{
+				typedef std::pair<TEntor, std::set<TRet>> DataType;
+
+				return _INNER_Entor<value_type, DataType>([=](DataType & pair)->value_type {
+					for (;;)
+					{
+						value_type object = pair.first.next();
+						TRet key = transform(object);
+						if (pair.second.find(key) == pair.second.end())
+						{
+							pair.second.insert(key);
+							return object;
+						}
+					}
+				}, std::make_pair(_entor, std::set<TRet>()));
+			}
+
+			template<typename TFunc>
+			Linqer<_INNER_Entor<value_type, std::pair<TEntor, std::set<decltype(get_return_type<TFunc, value_type>())>>>>
+				distinct(TFunc transform) const
+			{
+				return distinct<decltype(get_return_type<TFunc, value_type>())>(transform);
+			}
+
+			Linqer<_INNER_Entor<value_type, std::pair<TEntor, std::set<value_type>>>>
+				distinct() const
+			{
+				return distinct<value_type>([](value_type a) {return a; });
+			}
+
+	private:
+
+		template<typename T, typename TRet>
+		class _INNER_Trans_Comp
+		{
+		public:
+			std::function<TRet(T)> func;
+			_INNER_Trans_Comp(std::function<TRet(T)> func_) : func(func_) {}
+
+			bool operator()(const T & a, const T & b) const
+			{
+				return func(a) < func(b);
+			}
+		};
 
 	public:
-		LinqImpl(TEnumerator* enumerator) : _enumerator(enumerator) {}
-		virtual ~LinqImpl() { delete _enumerator; }
-
-		/*
-		** Linq API
-		*/
-		void foreach(std::function<void(value_type)> action) const
+	
+		template<typename TRet>
+		Linqer<_INNER_Entor<value_type, _INNER_Iter_Cont_Pair<typename std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet> >::iterator,
+			std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet>>>>>
+			order_by(std::function<TRet(value_type)> transform) const
 		{
-			foreach_impl([&](value_type a, int) {return action(a); });
-		}		
+			typedef _INNER_Iter_Cont_Pair<typename std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet> >::iterator,
+				std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet>>> DataType;
 
-		LinqImpl<_inner_enumerator<value_type, TEnumerator>> 
-			where(std::function<bool(value_type)> predicate) const
-		{
-			return where_impl([=](value_type a, int) {return predicate(a); });
+			std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet> > objects(transform);
+			try
+			{
+				auto en = _entor;
+				for (;;)
+					objects.insert(en.next());
+			}
+			catch (_INNER_Entor_End &) {}
+
+			return _INNER_Entor<value_type, DataType>([](DataType & pair)
+			{
+				return (pair.first == pair.second.end())
+					? throw _INNER_Entor_End() : *(pair.first++);
+			}, DataType(objects, [](const std::multiset<value_type, _INNER_Trans_Comp<value_type, TRet>> & mset)
+			{return mset.begin(); }));
 		}
 
-		/*
-		** get n elements
-		*/
-		LinqImpl<_inner_enumerator<value_type, TEnumerator>> 
-			take(int count) const
+		template<typename TFunc>
+		Linqer<_INNER_Entor<value_type, _INNER_Iter_Cont_Pair<typename std::multiset<value_type, _INNER_Trans_Comp<value_type, decltype(get_return_type<TFunc, value_type>())>>::iterator,
+			std::multiset<value_type, _INNER_Trans_Comp<value_type, decltype(get_return_type<TFunc, value_type>())>>>>>
+			order_by(TFunc transform) const
 		{
-			return new _inner_enumerator<value_type, TEnumerator>
-				([&](TEnumerator & en) {
-				while (count-- > 0) {
-					return en.next();
-				};
-				throw _no_more_data();  // abort iterate
-			}, *_enumerator);
+			return order_by<decltype(get_return_type<TFunc, value_type>())>(transform);
+		}
+
+		Linqer<_INNER_Entor<value_type, _INNER_Iter_Cont_Pair<typename std::multiset<value_type, _INNER_Trans_Comp<value_type, value_type>>::iterator,
+			std::multiset<value_type, _INNER_Trans_Comp<value_type, value_type>>>>> order_by() const
+		{
+			return order_by<value_type>([](value_type a) {return a; });
+		}
+
+		Linqer<_INNER_Entor<value_type, _INNER_Iter_Cont_Pair<typename std::vector<value_type>::const_reverse_iterator, std::vector<value_type>>>> 
+			reverse() const
+		{
+			typedef _INNER_Iter_Cont_Pair<typename std::vector<value_type>::const_reverse_iterator, std::vector<value_type>> DataType;
+
+			return _INNER_Entor<value_type, DataType>([](DataType & pair)
+			{
+				return (pair.first == pair.second.crend())
+					? throw _INNER_Entor_End() : *(pair.first++);
+			}, DataType(to_vector(), [](const std::vector<value_type> & vec) {return vec.crbegin(); }));
+		}
+
+		template<typename TRet>
+		TRet aggregate(TRet start, std::function<TRet(TRet, value_type)> accumulate) const
+		{
+			try
+			{
+				auto en = _entor;
+				for (;;)
+					start = accumulate(start, en.next());
+			}
+			catch (_INNER_Entor_End &) {}
+			return start;
+		}
+
+		template<typename TRet>
+		TRet sum(std::function<TRet(value_type)> transform) const
+		{
+			return aggregate<TRet>(TRet(), [=](TRet accumulator, value_type object) {
+				return accumulator + transform(object);
+			});
+		}
+
+		template<typename TFunc>
+		decltype(get_return_type<TFunc, value_type>()) sum(TFunc transform) const
+		{
+			return sum<decltype(get_return_type<TFunc, value_type>())>(transform);
+		}
+
+		template<typename TRet>
+		TRet sum() const
+		{
+			return sum<TRet>([](value_type a) {return a; });
+		}
+
+		value_type sum() const
+		{
+			return sum<value_type>();
+		}
+
+		template<typename TRet>
+		TRet avg(std::function<TRet(value_type)> transform) const
+		{
+			int count = 0;
+			return aggregate<TRet>(TRet(), [&](TRet accumulator, value_type object)->TRet {
+				count++;
+				return (accumulator*(count - 1) + transform(object)) / count;
+			});
+		}
+
+		template<typename TFunc>
+		decltype(get_return_type<TFunc, value_type>()) avg(TFunc transform) const
+		{
+			return avg<decltype(get_return_type<TFunc, value_type>())>(transform);
+		}
+
+		template<typename TRet>
+		TRet avg() const
+		{
+			return avg<TRet>([](value_type a) {return a; });
+		}
+
+		value_type avg() const
+		{
+			return avg<value_type>();
+		}
+
+		int count(std::function<bool(value_type)> predicate) const
+		{
+			return aggregate<int>(0, [=](int count, value_type a) 
+			{return count + (predicate(a) ? 1 : 0); });
+		}
+
+		int count(const value_type & value) const
+		{
+			return count([=](value_type a) {return a == value; });
+		}
+
+		int count() const
+		{
+			return count([](value_type) {return true; });
+		}
+
+		bool any(std::function<bool(value_type)> predicate) const
+		{
+			try
+			{
+				auto en = _entor;
+				for (;;)
+					if (predicate(en.next()))
+						return true;
+			}
+			catch (_INNER_Entor_End &) {}
+			return false;
+		}
+
+		bool any() const
+		{
+			return any([](value_type a) {return static_cast<bool>(a); });
+		}
+
+		bool all(std::function<bool(value_type)> predicate) const
+		{
+			return !any([=](value_type a) {return !predicate(a); });
+		}
+
+		bool all() const
+		{
+			return all([](value_type a) {return static_cast<bool>(a); });
+		}
+
+		bool contains(const value_type & value) const
+		{
+			return any([&](value_type a) {return value == a; });
+		}
+
+		value_type elect(std::function<value_type(value_type, value_type)> accumulate) const
+		{
+			auto en = _entor;
+			T result = en.next();
+			try
+			{
+				for (;;)
+					result = accumulate(result, en.next());
+			}
+			catch (_INNER_Entor_End &) {}
+			return result;
+		}
+
+		template<typename TRet>
+		value_type max(std::function<TRet(value_type)> transform) const
+		{
+			return elect([=](value_type a, value_type b) {return transform(a) < transform(b) ? b : a; });
+		}
+
+		template<typename TFunc>
+		value_type max(TFunc transform) const
+		{
+			return max<decltype(get_return_type<TFunc, value_type>())>(transform);
+		}
+
+		value_type max() const
+		{
+			return max<value_type>([](value_type a) {return a; });
+		}
+
+		template<typename TRet>
+		value_type min(std::function<TRet(value_type)> transform) const
+		{
+			return elect([=](value_type a, value_type b) {return transform(a) < transform(b) ? a : b; });
+		}
+
+		template<typename TFunc>
+		value_type min(TFunc transform) const
+		{
+			return min<decltype(get_return_type<TFunc, value_type>())>(transform);
+		}
+
+		value_type min() const
+		{
+			return min<T>([](value_type a) {return a; });
+		}
+
+		value_type element_at(int index) const
+		{
+			auto en = _entor;
+			for (int i = 0; i < index; i++)
+				en.next();
+			return en.next();
+		}
+
+		value_type first(std::function<bool(value_type)> predicate) const
+		{
+			return where(predicate)_entor.next();
+		}
+
+		value_type first() const
+		{
+			return first([](value_type) {return true; });
+		}
+
+		value_type firstOrDefault(std::function<bool(value_type)> predicate)
+		{
+			try { return first(predicate); }
+			catch (_INNER_Entor_End &) { return value_type(); }
+		}
+
+		value_type firstOrDefault() const
+		{
+			try { return first(); }
+			catch (_INNER_Entor_End &) { return value_type(); }
+		}
+
+		value_type last(std::function<bool(value_type)> predicate) const
+		{
+			auto linq = where(predicate);
+			value_type object = linq._entor.next();
+			try { for (;;) object = linq._entor.next(); }
+			catch (_INNER_Entor_End &) { return object; }
+		}
+
+		value_type last() const
+		{
+			return last([](value_type) {return true; });
+		}
+
+		value_type lastOrDefault(std::function<bool(value_type)> predicate) const
+		{
+			try { return last(predicate); }
+			catch (_INNER_Entor_End &) { return value_type(); }
+		}
+
+		value_type lastOrDefault() const
+		{
+			return lastOrDefault([](value_type) {return true; });
 		}
 
 	private:
@@ -149,15 +555,16 @@ namespace cpknife
 		    TColl container;
 		    try
 		    {
-				while (true) func(container, _enumerator->next());
+				auto entor = _entor;
+				while (true) func(container, entor.next());
 		    }
-		    catch(_no_more_data &) {}
+		    catch(_INNER_Entor_End &) {}
 		    return container;
 		}
 
 	public:
 
-		vector<value_type> ToVector() const
+		vector<value_type> to_vector() const
 		{
 			return _To_Coll<vector<value_type>>([](
 				vector<value_type>& cnt, const value_type& val) {
@@ -165,7 +572,7 @@ namespace cpknife
 			});
 		}
 
-		list<value_type> ToList() const
+		list<value_type> to_list() const
 		{
 			return _To_Coll<list<value_type>>([](
 				list<value_type>& cnt, const value_type& val) {
@@ -173,7 +580,7 @@ namespace cpknife
 			});
 		}
 
-		deque<value_type> ToDeque() const
+		deque<value_type> to_deque() const
 		{
 			return _To_Coll<deque<value_type>>([](
 				deque<value_type>& cnt, const value_type& val) {
@@ -181,27 +588,78 @@ namespace cpknife
 			});
 		}
 
-		set<value_type> ToSet() const
+		set<value_type> to_set() const
 		{
 			return _To_Coll<set<value_type>>([](
 				set<value_type>& cnt, const value_type& val) {
 				cnt.insert(val);
 			});
 		}
+
+	public: // extends
+
+		//Linqer<_INNER_Entor<int, std::pair<int, std::pair<TEntor, value_type>>>> 
+		//	bytes(BytesDirection direction = FirstToLast) const
+		//{
+		//	typedef std::pair<int, std::pair<TEntor, value_type>> DataType;
+
+		//	auto pair = std::make_pair(_entor, value_type());
+		//	pair.second = pair.first.next();
+
+		//	return _INNER_Entor<int, DataType>([=](DataType & pair_)->int {
+		//		if ((direction == FirstToLast && pair_.first == sizeof(value_type))
+		//			|| (direction == LastToFirst && pair_.first == -1))
+		//		{
+		//			pair_.first = (direction == FirstToLast) ? 0 : sizeof(value_type) - 1;
+		//			pair_.second.second = pair_.second.first.next();
+		//		}
+		//		unsigned char * ptr = reinterpret_cast<unsigned char *>(&pair_.second.second);
+		//		int value = ptr[pair_.first];
+		//		pair_.first += (direction == FirstToLast) ? 1 : -1;
+		//		return value;
+		//	}, std::make_pair((direction == FirstToLast) ? 0 : sizeof(value_type) - 1, pair));
+		//}
+
+		//template<typename TRet>
+		//Linqer<_INNER_Entor<TRet, TEntor>> unbytes(BytesDirection direction = FirstToLast) const
+		//{
+		//	return _INNER_Entor<TRet, TEntor>([=](TEntor & en)->TRet {
+		//		TRet object;
+		//		unsigned char * ptr = reinterpret_cast<unsigned char *>(&object);
+		//		for (int i = (direction == FirstToLast) ? 0 : int(sizeof(TRet) - 1);
+		//			i != ((direction == FirstToLast) ? int(sizeof(TRet)) : -1);
+		//			i += (direction == FirstToLast) ? 1 : -1)
+		//		{
+		//			ptr[i] = en.next();
+		//		}
+		//		return object;
+		//	}, _entor);
+		//}
 	};
 
 #pragma endregion
 
 #pragma region linq api
 
+	/*
+	** linq start point
+	*/
 	template<typename TValue, typename TPos>
-	LinqImpl<_inner_enumerator<TValue, TPos>> from(
+	Linqer<_INNER_Entor<TValue, TPos>> from(
 		TPos begin,
 		TPos end)
 	{
-		return new _inner_enumerator<TValue, TPos>([=](TPos& iter) {
-			return (iter == end) ? throw _no_more_data() : *(iter++);
+		return _INNER_Entor<TValue, TPos>([=](TPos& iter) {
+			return (iter == end) ? throw _INNER_Entor_End() : *(iter++);
 		}, begin);
+	}
+
+	template<typename TValue, typename TPos>
+	Linqer<_INNER_Entor<TValue, std::pair<TPos, int>>> from(TPos begin, int length)
+	{
+		return _INNER_Entor<TValue, std::pair<TPos, int> >([=](std::pair<TPos, int> & pair) {
+			return (pair.second++ == length) ? throw _INNER_Entor_End() : *(pair.first++);
+		}, std::make_pair(begin, 0));
 	}
 
 	/*
