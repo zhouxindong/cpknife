@@ -16,13 +16,12 @@
 #include <climits>
 #include <unordered_set>
 #include <unordered_map>
-#include "exportapi.h"
+//#include "cpknife_exports.h"
 #include <fstream>
-
-using namespace std;
 
 namespace cpknife
 {
+
 #pragma region auxiliary
 
 	/*
@@ -125,6 +124,8 @@ namespace cpknife
 	public:
 		Linqer(TEntor entor) : _entor(entor) {}
 
+		value_type next() { return _entor.next(); }
+
 		/*
 		** action() for each element
 		** a indexer can be used
@@ -161,7 +162,7 @@ namespace cpknife
 		}
 
 		Linqer<_INNER_Entor<value_type, std::pair<TEntor, int>>>
-			where(std::function<bool(value_type)> predicate) const
+			where_(std::function<bool(value_type)> predicate) const
 			{
 				return _where([=](value_type a, int) {return predicate(a); });
 			}
@@ -449,7 +450,7 @@ namespace cpknife
 		value_type elect(std::function<value_type(value_type, value_type)> accumulate) const
 		{
 			auto en = _entor;
-			T result = en.next();
+			value_type result = en.next();
 			try
 			{
 				for (;;)
@@ -460,37 +461,37 @@ namespace cpknife
 		}
 
 		template<typename TRet>
-		value_type max(std::function<TRet(value_type)> transform) const
+		value_type max_(std::function<TRet(value_type)> transform) const
 		{
 			return elect([=](value_type a, value_type b) {return transform(a) < transform(b) ? b : a; });
 		}
 
 		template<typename TFunc>
-		value_type max(TFunc transform) const
+		value_type max_(TFunc transform) const
 		{
-			return max<decltype(get_return_type<TFunc, value_type>())>(transform);
+			return max_<decltype(get_return_type<TFunc, value_type>())>(transform);
 		}
 
-		value_type max() const
+		value_type max_() const
 		{
-			return max<value_type>([](value_type a) {return a; });
+			return max_<value_type>([](value_type a) {return a; });
 		}
 
 		template<typename TRet>
-		value_type min(std::function<TRet(value_type)> transform) const
+		value_type min_(std::function<TRet(value_type)> transform) const
 		{
 			return elect([=](value_type a, value_type b) {return transform(a) < transform(b) ? a : b; });
 		}
 
 		template<typename TFunc>
-		value_type min(TFunc transform) const
+		value_type min_(TFunc transform) const
 		{
-			return min<decltype(get_return_type<TFunc, value_type>())>(transform);
+			return min_<decltype(get_return_type<TFunc, value_type>())>(transform);
 		}
 
-		value_type min() const
+		value_type min_() const
 		{
-			return min<T>([](value_type a) {return a; });
+			return min_<value_type>([](value_type a) {return a; });
 		}
 
 		value_type element_at(int index) const
@@ -501,29 +502,29 @@ namespace cpknife
 			return en.next();
 		}
 
-		value_type first(std::function<bool(value_type)> predicate) const
+		value_type first_(std::function<bool(value_type)> predicate) const
 		{
-			return where(predicate)_entor.next();
+			return where_(predicate).next();
 		}
 
-		value_type first() const
+		value_type first_() const
 		{
-			return first([](value_type) {return true; });
+			return first_([](value_type) {return true; });
 		}
 
 		value_type firstOrDefault(std::function<bool(value_type)> predicate)
 		{
-			try { return first(predicate); }
+			try { return first_(predicate); }
 			catch (_INNER_Entor_End &) { return value_type(); }
 		}
 
 		value_type firstOrDefault() const
 		{
-			try { return first(); }
+			try { return first_(); }
 			catch (_INNER_Entor_End &) { return value_type(); }
 		}
 
-		value_type last(std::function<bool(value_type)> predicate) const
+		value_type last_(std::function<bool(value_type)> predicate) const
 		{
 			auto linq = where(predicate);
 			value_type object = linq._entor.next();
@@ -531,14 +532,14 @@ namespace cpknife
 			catch (_INNER_Entor_End &) { return object; }
 		}
 
-		value_type last() const
+		value_type last_() const
 		{
-			return last([](value_type) {return true; });
+			return last_([](value_type) {return true; });
 		}
 
 		value_type lastOrDefault(std::function<bool(value_type)> predicate) const
 		{
-			try { return last(predicate); }
+			try { return last_(predicate); }
 			catch (_INNER_Entor_End &) { return value_type(); }
 		}
 
@@ -564,7 +565,7 @@ namespace cpknife
 
 	public:
 
-		vector<value_type> to_vector() const
+		std::vector<value_type> to_vector() const
 		{
 			return _To_Coll<vector<value_type>>([](
 				vector<value_type>& cnt, const value_type& val) {
@@ -572,7 +573,7 @@ namespace cpknife
 			});
 		}
 
-		list<value_type> to_list() const
+		std::list<value_type> to_list() const
 		{
 			return _To_Coll<list<value_type>>([](
 				list<value_type>& cnt, const value_type& val) {
@@ -580,7 +581,7 @@ namespace cpknife
 			});
 		}
 
-		deque<value_type> to_deque() const
+		std::deque<value_type> to_deque() const
 		{
 			return _To_Coll<deque<value_type>>([](
 				deque<value_type>& cnt, const value_type& val) {
@@ -588,53 +589,13 @@ namespace cpknife
 			});
 		}
 
-		set<value_type> to_set() const
+		std::set<value_type> to_set() const
 		{
 			return _To_Coll<set<value_type>>([](
 				set<value_type>& cnt, const value_type& val) {
 				cnt.insert(val);
 			});
 		}
-
-	public: // extends
-
-		//Linqer<_INNER_Entor<int, std::pair<int, std::pair<TEntor, value_type>>>> 
-		//	bytes(BytesDirection direction = FirstToLast) const
-		//{
-		//	typedef std::pair<int, std::pair<TEntor, value_type>> DataType;
-
-		//	auto pair = std::make_pair(_entor, value_type());
-		//	pair.second = pair.first.next();
-
-		//	return _INNER_Entor<int, DataType>([=](DataType & pair_)->int {
-		//		if ((direction == FirstToLast && pair_.first == sizeof(value_type))
-		//			|| (direction == LastToFirst && pair_.first == -1))
-		//		{
-		//			pair_.first = (direction == FirstToLast) ? 0 : sizeof(value_type) - 1;
-		//			pair_.second.second = pair_.second.first.next();
-		//		}
-		//		unsigned char * ptr = reinterpret_cast<unsigned char *>(&pair_.second.second);
-		//		int value = ptr[pair_.first];
-		//		pair_.first += (direction == FirstToLast) ? 1 : -1;
-		//		return value;
-		//	}, std::make_pair((direction == FirstToLast) ? 0 : sizeof(value_type) - 1, pair));
-		//}
-
-		//template<typename TRet>
-		//Linqer<_INNER_Entor<TRet, TEntor>> unbytes(BytesDirection direction = FirstToLast) const
-		//{
-		//	return _INNER_Entor<TRet, TEntor>([=](TEntor & en)->TRet {
-		//		TRet object;
-		//		unsigned char * ptr = reinterpret_cast<unsigned char *>(&object);
-		//		for (int i = (direction == FirstToLast) ? 0 : int(sizeof(TRet) - 1);
-		//			i != ((direction == FirstToLast) ? int(sizeof(TRet)) : -1);
-		//			i += (direction == FirstToLast) ? 1 : -1)
-		//		{
-		//			ptr[i] = en.next();
-		//		}
-		//		return object;
-		//	}, _entor);
-		//}
 	};
 
 #pragma endregion

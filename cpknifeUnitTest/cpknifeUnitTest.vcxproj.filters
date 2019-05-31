@@ -32,5 +32,8 @@
     <ClCompile Include="linq.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sugar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

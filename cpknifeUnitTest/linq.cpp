@@ -122,7 +122,7 @@ namespace cpknifeUnitTest
 		TEST_METHOD(whereTest) {
 			int src[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-			auto result = from(src).where([](int a)
+			auto result = from(src).where_([](int a)
 			{
 				return a % 2 == 1;
 			});
@@ -135,7 +135,7 @@ namespace cpknifeUnitTest
 			Assert::AreEqual(7, vec[3]);
 			Assert::AreEqual(9, vec[4]);
 
-			auto result2 = from(src).where([](int a)
+			auto result2 = from(src).where_([](int a)
 			{
 				return a % 2 == 1;
 			});
@@ -158,7 +158,7 @@ namespace cpknifeUnitTest
 				"nokia",
 			};
 
-			auto rng = from(str_src).where([](string s)
+			auto rng = from(str_src).where_([](string s)
 			{return s[0] == 'a'; }).to_list();
 			Assert::AreEqual(2, (int)rng.size());
 			Assert::AreEqual(string("apple"), rng.front());
@@ -180,7 +180,7 @@ namespace cpknifeUnitTest
 				{ "man5",18 },
 			};
 
-			auto rng2 = from(obj_src).where([](const NameAge& a) {
+			auto rng2 = from(obj_src).where_([](const NameAge& a) {
 				return a.age < 18; 
 			}).to_list();
 			Assert::AreEqual(2, (int)rng2.size());
@@ -235,12 +235,12 @@ namespace cpknifeUnitTest
 		{
 			vector<int> vec5 = { 1,2,3,4,5,6,7,8,9 };
 			vector<int> exp5 = { 2,4,6 };
-			auto rst11 = from(vec5).take(6).where([](int e) {
+			auto rst11 = from(vec5).take(6).where_([](int e) {
 				return e % 2 == 0;
 			}).to_vector();
 			Assert::IsTrue(rst11 == exp5);
 
-			auto rst12 = from(vec5).take(3).where([](int e) {
+			auto rst12 = from(vec5).take(3).where_([](int e) {
 				return e > 100;
 			}).to_vector();
 			vector<int> empty_vec = {};
@@ -261,7 +261,7 @@ namespace cpknifeUnitTest
 			Assert::IsTrue(exp2 == rst2);
 
 			vector<int> exp3 = { 7,9 };
-			auto rst3 = from(vec).skip(5).where([](int e) {
+			auto rst3 = from(vec).skip(5).where_([](int e) {
 				return e % 2 == 1;
 			});
 		}
@@ -358,6 +358,37 @@ namespace cpknifeUnitTest
 
 			auto rst2 = from(src).reverse().reverse().to_vector();
 			Assert::IsTrue(rst2 == src);
+		}
+
+		TEST_METHOD(anyTest) {
+			string str2("two");
+			map<string, int> map1{ { "one", 1 },{ "two", 2 },{ "three", 3 } };
+			auto bool1 = from_map(map1).any([&](auto pair) {
+				return pair.first == str2;
+			});
+			Assert::IsTrue(bool1);
+
+			string strno("sssasfsdf");
+			bool1 = from_map(map1).any([&](auto pair) {
+				return pair.first == strno;
+			});
+			Assert::IsFalse(bool1);
+
+		}
+
+		TEST_METHOD(min_max_test) {
+			vector<int> vec = { 3,2,9,1,4, 5,8 };
+			auto min_value = from(vec).min_();
+			Assert::AreEqual(1, min_value);
+			auto max_value = from(vec).max_();
+			Assert::AreEqual(9, max_value);
+		}
+
+		TEST_METHOD(first_default_test) {
+			map<string, int> map1 = { {"one",1}, {"two", 2}, {"three", 3} };
+			from_map(map1).firstOrDefault([](auto& pair) {
+				return pair.first == "two";
+			});
 		}
 
 		//TEST_METHOD(bytesTest) {

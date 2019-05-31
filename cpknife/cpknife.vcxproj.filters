@@ -24,10 +24,13 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="exportapi.h">
+    <ClInclude Include="linq.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="linq.h">
+    <ClInclude Include="sugar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cpknife_exports.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -43,7 +43,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -142,9 +142,10 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="exportapi.h" />
+    <ClInclude Include="cpknife_exports.h" />
     <ClInclude Include="linq.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="sugar.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
