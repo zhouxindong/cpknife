@@ -28,6 +28,7 @@ namespace cpknifeUnitTest
 		TEST_METHOD(_PROPERTY_Test)
 		{
 			A a;
+			
 			a.set_age(35);
 			Assert::AreEqual(35, a.get_age());
 			Assert::AreEqual(string("jionns"), a.get_name());
