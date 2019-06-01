@@ -8,7 +8,7 @@
 
 #pragma region auto_property
 
-#define _DEF_PROPERTY_INIT(type, name, value) type _##name = value;
+#define _DEF_PROPERTY_INIT(type, name, value) type _##name{ value };
 #define _DEF_PROPERTY(type, name) type _##name;
 
 #define _GET_PROPERTY(type, name) type get_##name() const {return _##name;}
