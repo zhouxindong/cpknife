@@ -52,6 +52,34 @@ namespace cpknifeUnitTest
 			t = std::string("string class");
 			Assert::AreEqual(t.as<std::string>(),
 				std::string("string class"));
+
+			UINT8 buf[10] = { 1,2,3,4,5,6,7,8,9,10 };
+			UINT32 size = 10;
+			std::pair<unsigned char*, unsigned int> pr = std::make_pair(
+				buf, size);
+			t = pr;
+
+			auto size_ = t.as<pair<unsigned char*, unsigned int>>().second;
+			Assert::AreEqual((unsigned int)10, size_);
+			auto buf_ = t.as<pair<unsigned char*, unsigned int>>().first;
+			for (int i = 0; i < size_; i++)
+			{
+				Assert::AreEqual(i + 1, (int)buf_[i]);
+			}
+
+			vector<UINT8> ect;
+			for (int i = 0; i < 10; i++)
+			{
+				ect.push_back(i + 1);
+			}
+			t = ect;
+			Assert::IsTrue(typeid(vector<UINT8>) == t.type());
+			auto ect2 = t.as<vector<UINT8>>();
+			for (int i = 0; i < 10; i++)
+			{
+				Assert::AreEqual(i + 1, (int)ect2[i]);
+			}
+			Assert::AreEqual(10, (int)ect2.size());
 		}
 
 		TEST_METHOD(valueTest)

@@ -97,6 +97,8 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>..\x64\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>cpknife.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -149,7 +151,12 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ajson.cpp" />
     <ClCompile Include="any.cpp" />
+    <ClCompile Include="any_bag.cpp" />
+    <ClCompile Include="any_prop.cpp" />
+    <ClCompile Include="binary.cpp" />
+    <ClCompile Include="json11.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -158,11 +165,6 @@
     </ClCompile>
     <ClCompile Include="linq.cpp" />
     <ClCompile Include="sugar.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\cpknife\cpknife.vcxproj">
-      <Project>{781b2f95-3997-40fc-8650-c8e07fb70f51}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

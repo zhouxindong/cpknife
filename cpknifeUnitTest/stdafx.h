@@ -21,4 +21,11 @@
 #include <forward_list>
 #include <map>
 
+struct person
+{
+	std::string name;
+	int age;
+};
+
+
 // TODO: reference additional headers your program requires here

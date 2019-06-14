@@ -36,12 +36,39 @@
     <ClInclude Include="any.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ajson.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="any_prop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="json11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="binary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="any_bag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="json11.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="any_prop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="binary.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="any_bag.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
